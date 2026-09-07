@@ -1,0 +1,13 @@
+.DS_Store
+*.plist
+
+/build/
+/build-*/
+/releases/
+
+*.obj
+*.o
+*.pdb
+*.ilk
+*.exp
+*.lib
