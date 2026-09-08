@@ -1,13 +1,11 @@
 #include "Provider/ThumbnailProvider.h"
 
-#include "Decoders/ApplicationBadge.h"
 #include "Decoders/ThumbnailPipeline.h"
 #include "Decoders/ThumbnailEffects.h"
 #include "Provider/Module.h"
 #include "Settings/UserSettings.h"
 
 #include <algorithm>
-#include <cwctype>
 #include <new>
 
 namespace artthumb {
@@ -48,18 +46,6 @@ HRESULT ThumbnailProvider::Initialize(IStream* stream, DWORD) noexcept {
     if (stream_) return HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED);
     stream_ = stream;
     stream_->AddRef();
-    STATSTG stat{};
-    if (SUCCEEDED(stream_->Stat(&stat, STATFLAG_DEFAULT)) && stat.pwcsName) {
-        const std::wstring name(stat.pwcsName);
-        CoTaskMemFree(stat.pwcsName);
-        const size_t slash = name.find_last_of(L"\\/");
-        const size_t dot = name.find_last_of(L'.');
-        if (dot != std::wstring::npos && (slash == std::wstring::npos || dot > slash)) {
-            extension_ = name.substr(dot);
-            std::transform(extension_.begin(), extension_.end(), extension_.begin(),
-                           [](wchar_t value) { return static_cast<wchar_t>(std::towlower(value)); });
-        }
-    }
     return S_OK;
 }
 
@@ -74,10 +60,6 @@ HRESULT ThumbnailProvider::GetThumbnail(UINT edge, HBITMAP* bitmap, WTS_ALPHATYP
         if (SUCCEEDED(hr) && *bitmap) {
             const UserSettings settings = LoadUserSettings();
             ApplyThumbnailSharpness(*bitmap, settings.sharpness);
-            const ThumbnailKind extensionKind = ThumbnailKindFromExtension(extension_);
-            AddApplicationBadge(*bitmap,
-                extensionKind == ThumbnailKind::Unknown ? kind : extensionKind,
-                extension_, boundedEdge, settings.badgePercent);
             *alpha = WTSAT_ARGB;
         }
         return hr;

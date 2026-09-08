@@ -235,9 +235,9 @@ HRESULT DecodePsd(const StreamReader& reader, UINT edge, HBITMAP* bitmap) noexce
         PsdInfo info;
         HRESULT hr = ReadInfo(reader, info);
         if (FAILED(hr)) return hr;
-        hr = DecodeThumbnailResource(reader, info, edge, bitmap);
+        hr = DecodeComposite(reader, info, edge, bitmap);
         if (SUCCEEDED(hr)) return hr;
-        return DecodeComposite(reader, info, edge, bitmap);
+        return DecodeThumbnailResource(reader, info, edge, bitmap);
     } catch (const std::bad_alloc&) {
         return E_OUTOFMEMORY;
     } catch (...) {

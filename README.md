@@ -1,4 +1,4 @@
-# ArtThumb 1.2.0
+# ArtThumb 1.2.1
 
 Created by **Cao Le**.
 
@@ -7,27 +7,23 @@ Official source and releases: <https://github.com/lt-cao/ArtThumb>
 ArtThumb is a native Windows Explorer thumbnail provider for creative-document
 formats. Windows loads the provider only when Explorer needs a thumbnail that is
 not already in its cache. The separate native **ArtThumb Settings** window shows a
-live preview and lets the user adjust badge size and thumbnail sharpness.
+clean live preview and lets the user adjust thumbnail sharpness.
 
-Each thumbnail includes one application icon in its bottom-right corner. The installer
-suppresses Explorer’s built-in file-type overlay for the six supported extensions so
-it cannot overlap ArtThumb’s badge. ArtThumb uses only the executable icon of the
-associated app; it never uses the document type’s `DefaultIcon`. If Windows cannot
-resolve the executable, it draws a compact `Ps`, `Ai`, `Id`, or `PDF` badge. Badge
-scale follows the longest delivered thumbnail edge without a fixed pixel cap, and is
-reduced only when a very thin panorama cannot physically contain it.
+Each thumbnail contains only the document preview. ArtThumb never draws `Ps`, `Ai`,
+`Id`, or `PDF` over the content. The installer also suppresses Explorer’s built-in
+file-type overlay for the six supported extensions, so no second icon is added in a
+corner by Windows.
 
 ## Settings window
 
 Open **ArtThumb Settings** from the Start menu. It provides:
 
 - A live File Explorer-style preview for PSD, PSB, AI, EPS, INDD, and PDF.
-- Application-badge size from 12% to 40%.
 - Optional thumbnail sharpening from 0% to 100%; 0% preserves original pixels.
 - A format-support summary and author/version information.
 - A manual GitHub update check against `lt-cao/ArtThumb` releases.
 
-Settings are stored as two small per-user registry values under
+Settings are stored as one small per-user registry value under
 `HKCU\Software\ArtThumb\Settings`. The provider reads them only on Explorer cache
 misses. The settings app never stays in the background and contacts GitHub only
 when **Check for updates** is clicked.
@@ -36,7 +32,7 @@ when **Check for updates** is clicked.
 
 | Format | Thumbnail source |
 |---|---|
-| PSD / PSB | Embedded Photoshop JPEG preview first; 8-bit grayscale, RGB, and CMYK flattened composite fallback for raw or PackBits/RLE files |
+| PSD / PSB | Full-resolution 8-bit grayscale, RGB, or CMYK flattened composite first for raw or PackBits/RLE files; embedded Photoshop JPEG preview fallback |
 | PDF | First page rendered by the Windows `Windows.Data.Pdf` API on a dedicated MTA worker |
 | AI | First page when saved with **Create PDF Compatible File**; embedded XMP/JPEG or EPS preview fallback |
 | EPS | Embedded TIFF, EPSI (`%%BeginPreview`), or JPEG preview |
@@ -104,8 +100,8 @@ LLVM_MINGW_ROOT=/path/to/llvm-mingw ./scripts/build-cross.sh
 Explorer resolves the per-extension thumbnail association to one COM class. The
 provider receives an `IStream`, detects the format from file signatures (including
 PDF-compatible AI), extracts or renders one preview, scales through WIC, applies
-the selected sharpness, overlays the registered application's icon at the selected
-size, and returns a 32-bit DIB to Explorer. It does not start Adobe applications.
+the selected sharpness, and returns a clean 32-bit DIB to Explorer. It does not
+start Adobe applications.
 
 See `docs/FORMAT_NOTES.md` for decoder boundaries and `docs/SECURITY.md` for the
 threat model.

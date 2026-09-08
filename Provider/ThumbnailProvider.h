@@ -2,7 +2,6 @@
 
 #include <shobjidl.h>
 #include <thumbcache.h>
-#include <string>
 
 namespace artthumb {
 
@@ -21,7 +20,6 @@ private:
     ~ThumbnailProvider();
     volatile long refCount_ = 1;
     IStream* stream_ = nullptr;
-    std::wstring extension_;
 };
 
 } // namespace artthumb

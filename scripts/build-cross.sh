@@ -38,7 +38,6 @@ provider_sources=(
   Provider/Registration.cpp
   Decoders/StreamReader.cpp
   Decoders/WicImage.cpp
-  Decoders/ApplicationBadge.cpp
   Decoders/ThumbnailEffects.cpp
   Decoders/EmbeddedPreview.cpp
   Decoders/PsdDecoder.cpp
@@ -67,7 +66,6 @@ done
 settings_sources=(
   SettingsApp/Main.cpp
   Settings/UserSettings.cpp
-  Decoders/ApplicationBadge.cpp
   Decoders/ThumbnailEffects.cpp
 )
 settings_paths=()

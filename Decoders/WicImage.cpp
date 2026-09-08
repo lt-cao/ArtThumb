@@ -12,6 +12,10 @@
 namespace artthumb {
 namespace {
 
+// Windows 10 added WICBitmapInterpolationModeHighQualityCubic with value 4.
+// Some MinGW header releases do not expose the symbolic enum value yet.
+constexpr auto kWicHighQualityCubic = static_cast<WICBitmapInterpolationMode>(4);
+
 HRESULT CreateFactory(ComPtr<IWICImagingFactory>& factory) noexcept {
     return CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER,
                             IID_PPV_ARGS(factory.Put()));
@@ -64,8 +68,11 @@ HRESULT DecodeEncodedStream(IStream* stream, UINT edge, HBITMAP* bitmap) noexcep
         UINT sourceHeight = 0;
         hr = frame->GetSize(&sourceWidth, &sourceHeight);
         if (FAILED(hr) || sourceWidth == 0 || sourceHeight == 0) return E_FAIL;
-        const double scale = std::min(1.0, static_cast<double>(edge) /
-                                           std::max(sourceWidth, sourceHeight));
+        // Explorer does not enlarge thumbnails returned smaller than the requested
+        // edge. Scale embedded previews here so WIC can use a high-quality filter
+        // instead of leaving a small, soft bitmap in the thumbnail cache.
+        const double scale = static_cast<double>(edge) /
+                             std::max(sourceWidth, sourceHeight);
         const UINT width = std::max<UINT>(1, static_cast<UINT>(std::lround(sourceWidth * scale)));
         const UINT height = std::max<UINT>(1, static_cast<UINT>(std::lround(sourceHeight * scale)));
 
@@ -74,7 +81,8 @@ HRESULT DecodeEncodedStream(IStream* stream, UINT edge, HBITMAP* bitmap) noexcep
             ComPtr<IWICBitmapScaler> scaler;
             hr = factory->CreateBitmapScaler(scaler.Put());
             if (FAILED(hr)) return hr;
-            hr = scaler->Initialize(frame.Get(), width, height, WICBitmapInterpolationModeFant);
+            hr = scaler->Initialize(frame.Get(), width, height,
+                                    kWicHighQualityCubic);
             if (FAILED(hr)) return hr;
             hr = scaler->QueryInterface(IID_PPV_ARGS(source.Put()));
         } else {

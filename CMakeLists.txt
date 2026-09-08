@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(ArtThumb VERSION 1.2.0 LANGUAGES CXX RC)
+project(ArtThumb VERSION 1.2.1 LANGUAGES CXX RC)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,7 +14,6 @@ add_library(ArtThumbProvider SHARED
     Provider/Registration.cpp
     Decoders/StreamReader.cpp
     Decoders/WicImage.cpp
-    Decoders/ApplicationBadge.cpp
     Decoders/ThumbnailEffects.cpp
     Decoders/EmbeddedPreview.cpp
     Decoders/PsdDecoder.cpp
@@ -54,7 +53,6 @@ set_target_properties(ArtThumbSetup PROPERTIES SUFFIX ".exe")
 add_executable(ArtThumbSettings WIN32
     SettingsApp/Main.cpp
     Settings/UserSettings.cpp
-    Decoders/ApplicationBadge.cpp
     Decoders/ThumbnailEffects.cpp
     resources/settings.rc
 )

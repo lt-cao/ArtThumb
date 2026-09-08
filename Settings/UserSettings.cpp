@@ -33,8 +33,6 @@ UserSettings LoadUserSettings() noexcept {
     HKEY key = nullptr;
     if (RegOpenKeyExW(HKEY_CURRENT_USER, kSettingsKey, 0, KEY_QUERY_VALUE, &key) != ERROR_SUCCESS)
         return settings;
-    settings.badgePercent = ReadSetting(key, L"BadgePercent", kDefaultBadgePercent,
-                                        kMinimumBadgePercent, kMaximumBadgePercent);
     settings.sharpness = ReadSetting(key, L"Sharpness", kDefaultSharpness,
                                      kMinimumSharpness, kMaximumSharpness);
     RegCloseKey(key);
@@ -47,12 +45,9 @@ bool SaveUserSettings(const UserSettings& settings) noexcept {
     if (RegCreateKeyExW(HKEY_CURRENT_USER, kSettingsKey, 0, nullptr,
                         REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, nullptr,
                         &key, &disposition) != ERROR_SUCCESS) return false;
-    const int badge = std::clamp(settings.badgePercent,
-                                 kMinimumBadgePercent, kMaximumBadgePercent);
     const int sharpness = std::clamp(settings.sharpness,
                                      kMinimumSharpness, kMaximumSharpness);
-    const bool success = WriteSetting(key, L"BadgePercent", badge) &&
-                         WriteSetting(key, L"Sharpness", sharpness);
+    const bool success = WriteSetting(key, L"Sharpness", sharpness);
     RegCloseKey(key);
     return success;
 }

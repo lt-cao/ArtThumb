@@ -1,4 +1,3 @@
-#include "Decoders/ApplicationBadge.h"
 #include "Decoders/ThumbnailEffects.h"
 #include "Provider/Module.h"
 #include "Settings/UserSettings.h"
@@ -26,8 +25,6 @@ constexpr UINT kUpdateComplete = WM_APP + 1;
 
 enum ControlId {
     kFormat = 1001,
-    kBadgeSlider,
-    kBadgeValue,
     kSharpnessSlider,
     kSharpnessValue,
     kSave,
@@ -40,23 +37,20 @@ enum ControlId {
 struct FormatChoice {
     const wchar_t* label;
     const wchar_t* extension;
-    artthumb::ThumbnailKind kind;
 };
 
 constexpr FormatChoice kFormats[] = {
-    {L"Photoshop (.psd)", L".psd", artthumb::ThumbnailKind::Photoshop},
-    {L"Photoshop Large (.psb)", L".psb", artthumb::ThumbnailKind::Photoshop},
-    {L"Illustrator (.ai)", L".ai", artthumb::ThumbnailKind::Illustrator},
-    {L"Illustrator EPS (.eps)", L".eps", artthumb::ThumbnailKind::Illustrator},
-    {L"InDesign (.indd)", L".indd", artthumb::ThumbnailKind::InDesign},
-    {L"PDF (.pdf)", L".pdf", artthumb::ThumbnailKind::Pdf},
+    {L"Photoshop (.psd)", L".psd"},
+    {L"Photoshop Large (.psb)", L".psb"},
+    {L"Illustrator (.ai)", L".ai"},
+    {L"Illustrator EPS (.eps)", L".eps"},
+    {L"InDesign (.indd)", L".indd"},
+    {L"PDF (.pdf)", L".pdf"},
 };
 
 HWND g_window = nullptr;
 HWND g_format = nullptr;
 HWND g_previewFilename = nullptr;
-HWND g_badgeSlider = nullptr;
-HWND g_badgeValue = nullptr;
 HWND g_sharpnessSlider = nullptr;
 HWND g_sharpnessValue = nullptr;
 HWND g_updateButton = nullptr;
@@ -171,15 +165,8 @@ void RebuildPreview() noexcept {
     }
     g_preview = CreateSampleBitmap(360, 220);
     if (!g_preview) return;
-    const int index = std::clamp<int>(
-        static_cast<int>(SendMessageW(g_format, CB_GETCURSEL, 0, 0)),
-        0, static_cast<int>(std::size(kFormats)) - 1);
     const int sharpness = SliderValue(g_sharpnessSlider);
-    const int badge = SliderValue(g_badgeSlider);
     artthumb::ApplyThumbnailSharpness(g_preview, sharpness);
-    artthumb::AddApplicationBadge(g_preview, kFormats[index].kind,
-                                   kFormats[index].extension, 360, badge);
-    SetWindowTextW(g_badgeValue, PercentText(badge).c_str());
     SetWindowTextW(g_sharpnessValue, PercentText(sharpness).c_str());
     RECT bounds = PreviewBounds();
     InvalidateRect(g_window, &bounds, FALSE);
@@ -279,7 +266,8 @@ struct UpdateResult {
 
 UpdateResult QueryLatestRelease() {
     UpdateResult result;
-    HINTERNET session = WinHttpOpen(L"ArtThumb/1.2.0",
+    const std::wstring userAgent = std::wstring(L"ArtThumb/") + artthumb::kProductVersion;
+    HINTERNET session = WinHttpOpen(userAgent.c_str(),
         WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME,
         WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) {
@@ -380,7 +368,6 @@ void OpenUrl(const wchar_t* url) noexcept {
 
 void SaveSettings() noexcept {
     artthumb::UserSettings settings;
-    settings.badgePercent = SliderValue(g_badgeSlider);
     settings.sharpness = SliderValue(g_sharpnessSlider);
     if (!artthumb::SaveUserSettings(settings)) {
         SetStatus(L"Không thể lưu cài đặt.");
@@ -391,7 +378,6 @@ void SaveSettings() noexcept {
 }
 
 void ResetControls() noexcept {
-    SendMessageW(g_badgeSlider, TBM_SETPOS, TRUE, artthumb::kDefaultBadgePercent);
     SendMessageW(g_sharpnessSlider, TBM_SETPOS, TRUE, artthumb::kDefaultSharpness);
     RebuildPreview();
     SetStatus(L"Đã đưa phần xem trước về mặc định; bấm Lưu để áp dụng.");
@@ -425,31 +411,24 @@ void CreateInterface() {
 
     AddControl(L"BUTTON", L"Tùy chỉnh thumbnail", BS_GROUPBOX,
                472, 72, 480, 340);
-    AddControl(L"STATIC", L"Kích thước logo ứng dụng ở góc", SS_LEFT,
-               500, 108, 320, 24);
-    g_badgeValue = AddControl(L"STATIC", L"22%", SS_RIGHT,
-                              852, 108, 62, 24, kBadgeValue);
-    g_badgeSlider = AddControl(TRACKBAR_CLASSW, L"",
-        TBS_AUTOTICKS | TBS_HORZ | WS_TABSTOP, 500, 138, 414, 46, kBadgeSlider);
-    SendMessageW(g_badgeSlider, TBM_SETRANGE, TRUE,
-        MAKELPARAM(artthumb::kMinimumBadgePercent, artthumb::kMaximumBadgePercent));
-    SendMessageW(g_badgeSlider, TBM_SETTICFREQ, 4, 0);
-
     AddControl(L"STATIC", L"Độ sắc nét của nội dung thumbnail", SS_LEFT,
-               500, 208, 320, 24);
+               500, 112, 320, 24);
     g_sharpnessValue = AddControl(L"STATIC", L"0%", SS_RIGHT,
-                                  852, 208, 62, 24, kSharpnessValue);
+                                  852, 112, 62, 24, kSharpnessValue);
     g_sharpnessSlider = AddControl(TRACKBAR_CLASSW, L"",
-        TBS_AUTOTICKS | TBS_HORZ | WS_TABSTOP, 500, 238, 414, 46, kSharpnessSlider);
+        TBS_AUTOTICKS | TBS_HORZ | WS_TABSTOP, 500, 142, 414, 46, kSharpnessSlider);
     SendMessageW(g_sharpnessSlider, TBM_SETRANGE, TRUE,
         MAKELPARAM(artthumb::kMinimumSharpness, artthumb::kMaximumSharpness));
     SendMessageW(g_sharpnessSlider, TBM_SETTICFREQ, 10, 0);
     AddControl(L"STATIC",
         L"0% giữ nguyên ảnh gốc. Mức cao làm rõ cạnh và chi tiết nhỏ; không tăng độ phân giải nguồn.",
-        SS_LEFT, 500, 290, 414, 58);
+        SS_LEFT, 500, 194, 414, 58);
     AddControl(L"STATIC",
-        L"Thay đổi hiển thị ngay ở khung xem trước bên trái.",
-        SS_LEFT, 500, 360, 414, 26);
+        L"Thumbnail trong Explorer chỉ có nội dung tài liệu, không chèn logo Ps, Ai, Id hoặc PDF.",
+        SS_LEFT, 500, 274, 414, 48);
+    AddControl(L"STATIC",
+        L"Thay đổi độ sắc nét hiển thị ngay ở khung xem trước bên trái.",
+        SS_LEFT, 500, 350, 414, 30);
 
     AddControl(L"BUTTON", L"Định dạng được hỗ trợ", BS_GROUPBOX,
                24, 428, 560, 166);
@@ -480,7 +459,6 @@ void CreateInterface() {
                790, 612, 158, 38, kSave);
 
     const artthumb::UserSettings settings = artthumb::LoadUserSettings();
-    SendMessageW(g_badgeSlider, TBM_SETPOS, TRUE, settings.badgePercent);
     SendMessageW(g_sharpnessSlider, TBM_SETPOS, TRUE, settings.sharpness);
     RebuildPreview();
 }
@@ -495,8 +473,7 @@ LRESULT CALLBACK WindowProcedure(HWND window, UINT message,
             CreateInterface();
             return 0;
         case WM_HSCROLL:
-            if (reinterpret_cast<HWND>(lParam) == g_badgeSlider ||
-                reinterpret_cast<HWND>(lParam) == g_sharpnessSlider) {
+            if (reinterpret_cast<HWND>(lParam) == g_sharpnessSlider) {
                 RebuildPreview();
                 SetStatus(L"");
             }

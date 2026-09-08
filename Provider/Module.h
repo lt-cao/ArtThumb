@@ -18,7 +18,7 @@ inline constexpr wchar_t kThumbnailProviderClsidText[] =
 inline constexpr wchar_t kThumbnailHandlerIidText[] =
     L"{E357FCCD-A995-4576-B01F-234630154E96}";
 inline constexpr wchar_t kProductName[] = L"ArtThumb";
-inline constexpr wchar_t kProductVersion[] = L"1.2.0";
+inline constexpr wchar_t kProductVersion[] = L"1.2.1";
 inline constexpr wchar_t kProductAuthor[] = L"Cao Le";
 inline constexpr wchar_t kGitHubRepositoryUrl[] = L"https://github.com/lt-cao/ArtThumb";
 inline constexpr wchar_t kGitHubLatestReleaseApiPath[] =

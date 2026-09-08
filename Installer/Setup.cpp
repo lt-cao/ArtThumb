@@ -318,7 +318,7 @@ int Install() {
     }
     CreateSettingsShortcut(destinationSettings, directory);
     MessageBoxW(nullptr,
-        L"Đã cài ArtThumb cho PSD, PSB, AI, EPS, INDD và PDF.\n\nArtThumb Settings sẽ mở để bạn xem trước và chỉnh kích thước logo, độ sắc nét thumbnail. Nếu thư mục đang mở chưa đổi thumbnail, hãy đóng rồi mở lại File Explorer.",
+        L"Đã cài ArtThumb cho PSD, PSB, AI, EPS, INDD và PDF.\n\nArtThumb Settings sẽ mở để bạn xem trước và chỉnh độ sắc nét thumbnail. Thumbnail chỉ hiển thị nội dung tài liệu, không chèn logo ứng dụng. Nếu thư mục đang mở chưa đổi thumbnail, hãy đóng rồi mở lại File Explorer.",
         L"ArtThumb", MB_OK | MB_ICONINFORMATION);
     ShellExecuteW(nullptr, L"open", destinationSettings.c_str(), nullptr,
                   directory.c_str(), SW_SHOWNORMAL);

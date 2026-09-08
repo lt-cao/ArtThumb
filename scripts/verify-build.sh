@@ -41,20 +41,21 @@ for extension in psd psb ai eps indd pdf; do
   rg -q "L\"\\.$extension\"" "$project_root/Provider/Registration.cpp"
   rg -q "L\"\\.$extension\"" "$project_root/Installer/Setup.cpp"
 done
-rg -q 'AddApplicationBadge' "$project_root/Provider/ThumbnailProvider.cpp"
 rg -q 'ApplyThumbnailSharpness' "$project_root/Provider/ThumbnailProvider.cpp"
 rg -q 'LoadUserSettings' "$project_root/Provider/ThumbnailProvider.cpp"
 rg -q 'TypeOverlay' "$project_root/Installer/Setup.cpp"
 rg -q 'const std::wstring overlay;' "$project_root/Installer/Setup.cpp"
-rg -q 'const int longest' "$project_root/Decoders/ApplicationBadge.cpp"
-rg -q 'badgePercent' "$project_root/Decoders/ApplicationBadge.cpp"
 rg -q 'kGitHubLatestReleaseApiPath' "$project_root/SettingsApp/Main.cpp"
 rg -q 'WinHttpOpen' "$project_root/SettingsApp/Main.cpp"
 rg -q 'ArtThumbSettings.exe' "$project_root/Installer/Setup.cpp"
-if rg -q 'ASSOCSTR_DEFAULTICON' "$project_root/Decoders/ApplicationBadge.cpp"; then
-  echo "Application badges must come from the associated executable, not DefaultIcon." >&2
+if rg -q 'AddApplicationBadge|ApplicationBadge\.cpp|badgePercent|BadgePercent' \
+    "$project_root/Provider" "$project_root/Settings" "$project_root/SettingsApp" \
+    "$project_root/CMakeLists.txt" "$project_root/scripts/build-cross.sh"; then
+  echo "Thumbnail pixels and settings must not contain application badges." >&2
   exit 1
 fi
+rg -q 'DecodeComposite\(reader, info, edge, bitmap\)' "$project_root/Decoders/PsdDecoder.cpp"
+rg -q 'WICBitmapInterpolationModeHighQualityCubic' "$project_root/Decoders/WicImage.cpp"
 rg -q 'FindXmpImage\(bytes, encoded\) \|\| FindJpeg' "$project_root/Decoders/EmbeddedPreview.cpp"
 rg -q 'entity == "&#xA;"' "$project_root/Decoders/EmbeddedPreview.cpp"
 indd_decoder="$(sed -n '/HRESULT DecodeInddPreview/,/^}/p' \
