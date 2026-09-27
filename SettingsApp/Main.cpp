@@ -6,6 +6,7 @@
 #include <commctrl.h>
 #include <shellapi.h>
 #include <shlobj.h>
+#include <shlwapi.h>
 #include <winhttp.h>
 
 #include <algorithm>
@@ -59,6 +60,7 @@ HFONT g_font = nullptr;
 HFONT g_headingFont = nullptr;
 HBRUSH g_backgroundBrush = nullptr;
 HBITMAP g_preview = nullptr;
+HICON g_previewAppIcon = nullptr;
 UINT g_dpi = 96;
 std::wstring g_latestReleaseUrl;
 
@@ -158,6 +160,34 @@ HBITMAP CreateSampleBitmap(int width, int height) noexcept {
     return bitmap;
 }
 
+void LoadPreviewApplicationIcon() noexcept {
+    if (g_previewAppIcon) {
+        DestroyIcon(g_previewAppIcon);
+        g_previewAppIcon = nullptr;
+    }
+    const int selected = static_cast<int>(SendMessageW(g_format, CB_GETCURSEL, 0, 0));
+    if (selected < 0 || selected >= static_cast<int>(std::size(kFormats))) return;
+    try {
+        DWORD characters = 0;
+        const wchar_t* extension = kFormats[selected].extension;
+        if (FAILED(AssocQueryStringW(ASSOCF_NONE, ASSOCSTR_EXECUTABLE,
+                                     extension, nullptr, nullptr, &characters)) ||
+            characters < 2 || characters > 32768)
+            return;
+        std::wstring executable(static_cast<size_t>(characters), L'\0');
+        if (FAILED(AssocQueryStringW(ASSOCF_NONE, ASSOCSTR_EXECUTABLE,
+                                     extension, nullptr, executable.data(), &characters)))
+            return;
+        HICON large = nullptr;
+        HICON small = nullptr;
+        if (ExtractIconExW(executable.c_str(), 0, &large, &small, 1) == 0) return;
+        g_previewAppIcon = large ? large : small;
+        if (large && small) DestroyIcon(small);
+    } catch (...) {
+        g_previewAppIcon = nullptr;
+    }
+}
+
 void RebuildPreview() noexcept {
     if (g_preview) {
         DeleteObject(g_preview);
@@ -165,6 +195,7 @@ void RebuildPreview() noexcept {
     }
     g_preview = CreateSampleBitmap(360, 220);
     if (!g_preview) return;
+    LoadPreviewApplicationIcon();
     const int sharpness = SliderValue(g_sharpnessSlider);
     artthumb::ApplyThumbnailSharpness(g_preview, sharpness);
     SetWindowTextW(g_sharpnessValue, PercentText(sharpness).c_str());
@@ -189,6 +220,15 @@ void PaintPreview(HDC destination) noexcept {
                source, 0, 0, bitmap.bmWidth, bitmap.bmHeight, SRCCOPY);
     SelectObject(source, previous);
     DeleteDC(source);
+
+    // Paint the app icon as a separate UI overlay, leaving g_preview untouched.
+    if (g_previewAppIcon) {
+        const int size = Scale(42);
+        const int inset = Scale(9);
+        DrawIconEx(destination, bounds.right - inset - size,
+                   bounds.bottom - inset - size, g_previewAppIcon,
+                   size, size, 0, nullptr, DI_NORMAL);
+    }
 
     HBRUSH border = CreateSolidBrush(RGB(82, 86, 94));
     FrameRect(destination, &bounds, border);
@@ -424,7 +464,7 @@ void CreateInterface() {
         L"0% giữ nguyên ảnh gốc. Mức cao làm rõ cạnh và chi tiết nhỏ; không tăng độ phân giải nguồn.",
         SS_LEFT, 500, 194, 414, 58);
     AddControl(L"STATIC",
-        L"Thumbnail trong Explorer chỉ có nội dung tài liệu, không chèn logo Ps, Ai, Id hoặc PDF.",
+        L"Explorer phủ icon ứng dụng riêng ở góc; ảnh thumbnail bên dưới không bị sửa.",
         SS_LEFT, 500, 274, 414, 48);
     AddControl(L"STATIC",
         L"Thay đổi độ sắc nét hiển thị ngay ở khung xem trước bên trái.",
@@ -533,6 +573,7 @@ LRESULT CALLBACK WindowProcedure(HWND window, UINT message,
         }
         case WM_DESTROY:
             if (g_preview) DeleteObject(g_preview);
+            if (g_previewAppIcon) DestroyIcon(g_previewAppIcon);
             if (g_font) DeleteObject(g_font);
             if (g_headingFont) DeleteObject(g_headingFont);
             if (g_backgroundBrush) DeleteObject(g_backgroundBrush);

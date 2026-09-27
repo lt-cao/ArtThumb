@@ -1,4 +1,4 @@
-# ArtThumb 1.2.1
+# ArtThumb 1.2.2
 
 Created by **Cao Le**.
 
@@ -9,16 +9,16 @@ formats. Windows loads the provider only when Explorer needs a thumbnail that is
 not already in its cache. The separate native **ArtThumb Settings** window shows a
 clean live preview and lets the user adjust thumbnail sharpness.
 
-Each thumbnail contains only the document preview. ArtThumb never draws `Ps`, `Ai`,
-`Id`, or `PDF` over the content. The installer also suppresses Explorer’s built-in
-file-type overlay for the six supported extensions, so no second icon is added in a
-corner by Windows.
+The thumbnail bitmap contains only the document preview. Windows Explorer adds the
+associated application's native icon as a separate lower-right thumbnail overlay.
+ArtThumb does not paint that icon into the document image.
 
 ## Settings window
 
 Open **ArtThumb Settings** from the Start menu. It provides:
 
 - A live File Explorer-style preview for PSD, PSB, AI, EPS, INDD, and PDF.
+- The associated application's icon shown as a separate overlay in the preview.
 - Optional thumbnail sharpening from 0% to 100%; 0% preserves original pixels.
 - A format-support summary and author/version information.
 - A manual GitHub update check against `lt-cao/ArtThumb` releases.
@@ -60,7 +60,9 @@ Requirements: 64-bit Windows 10 or Windows 11.
 
 Installation is per-user under `%LOCALAPPDATA%\Programs\ArtThumb` and does not
 request administrator rights. The installer saves any existing per-user
-thumbnail-handler and `TypeOverlay` values and restores them on uninstall.
+thumbnail-handler and `TypeOverlay` values and restores them on uninstall. It
+removes the `TypeOverlay` override while installed so Explorer uses the associated
+application's default icon for the thumbnail overlay.
 
 To uninstall, open **Settings > Apps > Installed apps > ArtThumb > Uninstall**.
 

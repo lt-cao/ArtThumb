@@ -174,11 +174,12 @@ bool ConfigureOverlay(const wchar_t* extension) {
     std::wstring target;
     if (!QueryString(HKEY_CURRENT_USER, BackupKey(extension), L"OverlayTarget", target))
         return false;
-    const std::wstring overlay; // Empty suppresses Explorer's built-in file-type icon.
-    if (!SetString(HKEY_CURRENT_USER, target, L"TypeOverlay", overlay))
+    // An absent TypeOverlay tells Explorer to use the associated app's default
+    // icon as a native thumbnail overlay. An empty string disables the overlay.
+    if (!SetDword(HKEY_CURRENT_USER, BackupKey(extension),
+                  L"InstalledOverlayPresent", 0))
         return false;
-    SetString(HKEY_CURRENT_USER, BackupKey(extension), L"InstalledOverlay", overlay);
-    return true;
+    return DeleteNamedValue(HKEY_CURRENT_USER, target, L"TypeOverlay");
 }
 
 void RestoreOverlay(const wchar_t* extension) {
@@ -187,13 +188,26 @@ void RestoreOverlay(const wchar_t* extension) {
     if (!QueryDword(HKEY_CURRENT_USER, backup, L"OverlayBackupMade", made) || made != 1)
         return;
     std::wstring target;
+    DWORD installedPresent = 0;
+    const bool hasInstallState = QueryDword(HKEY_CURRENT_USER, backup,
+                                             L"InstalledOverlayPresent", installedPresent);
     std::wstring installed;
     std::wstring current;
-    if (!QueryString(HKEY_CURRENT_USER, backup, L"OverlayTarget", target) ||
-        !QueryString(HKEY_CURRENT_USER, backup, L"InstalledOverlay", installed) ||
-        !QueryString(HKEY_CURRENT_USER, target, L"TypeOverlay", current) ||
-        current != installed)
+    if (!QueryString(HKEY_CURRENT_USER, backup, L"OverlayTarget", target))
         return;
+    const bool hasCurrent = QueryString(HKEY_CURRENT_USER, target, L"TypeOverlay", current);
+    if (hasInstallState) {
+        if ((installedPresent != 0 && (!hasCurrent ||
+             !QueryString(HKEY_CURRENT_USER, backup, L"InstalledOverlay", installed) ||
+             current != installed)) || (installedPresent == 0 && hasCurrent))
+            return;
+    } else {
+        // Backward compatibility with 1.2.1, which installed an empty value.
+        if (!hasCurrent ||
+            !QueryString(HKEY_CURRENT_USER, backup, L"InstalledOverlay", installed) ||
+            current != installed)
+            return;
+    }
     DWORD hadValue = 0;
     QueryDword(HKEY_CURRENT_USER, backup, L"OverlayHadValue", hadValue);
     if (hadValue == 1) {
@@ -318,7 +332,7 @@ int Install() {
     }
     CreateSettingsShortcut(destinationSettings, directory);
     MessageBoxW(nullptr,
-        L"Đã cài ArtThumb cho PSD, PSB, AI, EPS, INDD và PDF.\n\nArtThumb Settings sẽ mở để bạn xem trước và chỉnh độ sắc nét thumbnail. Thumbnail chỉ hiển thị nội dung tài liệu, không chèn logo ứng dụng. Nếu thư mục đang mở chưa đổi thumbnail, hãy đóng rồi mở lại File Explorer.",
+        L"Đã cài ArtThumb cho PSD, PSB, AI, EPS, INDD và PDF.\n\nArtThumb Settings sẽ mở để bạn xem trước icon ứng dụng và chỉnh độ sắc nét thumbnail. Windows Explorer tự phủ icon ứng dụng riêng ở góc; ảnh thumbnail không bị sửa. Nếu thư mục đang mở chưa đổi, hãy đóng rồi mở lại File Explorer.",
         L"ArtThumb", MB_OK | MB_ICONINFORMATION);
     ShellExecuteW(nullptr, L"open", destinationSettings.c_str(), nullptr,
                   directory.c_str(), SW_SHOWNORMAL);

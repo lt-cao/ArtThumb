@@ -26,12 +26,12 @@ foreach ($extension in $extensions) {
     $backupPath = "Registry::HKEY_CURRENT_USER\Software\ArtThumb\Backups\$extension"
     $overlayTarget = (Get-ItemProperty -LiteralPath $backupPath).OverlayTarget
     $overlayPath = "Registry::HKEY_CURRENT_USER\$overlayTarget"
-    $overlay = (Get-ItemProperty -LiteralPath $overlayPath).TypeOverlay
-    if ($null -eq $overlay -or $overlay -ne "") {
-        throw "Explorer TypeOverlay is not suppressed for $extension"
+    $overlay = (Get-ItemProperty -LiteralPath $overlayPath -ErrorAction SilentlyContinue).TypeOverlay
+    if ($null -ne $overlay) {
+        throw "Explorer TypeOverlay should be absent so its native app icon is used for $extension"
     }
 }
 
-Write-Host "ArtThumb registration, settings UI, and overlay suppression are valid for all six extensions."
+Write-Host "ArtThumb registration and native app thumbnail overlays are valid for all six extensions."
 Write-Host "Provider: $dll"
 Write-Host "Settings: $settings"

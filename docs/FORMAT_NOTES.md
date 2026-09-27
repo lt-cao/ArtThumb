@@ -16,10 +16,12 @@ The first PDF page is rendered with `Windows.Data.Pdf` on a dedicated MTA worker
 
 ## Clean thumbnails
 
-ArtThumb never draws an application or file-type badge into the returned bitmap.
-The installer writes an empty per-extension `TypeOverlay` value so Explorer also
-does not add its own icon in a corner. The prior value is backed up and restored
-on uninstall.
+ArtThumb never draws an application or file-type icon into the returned bitmap.
+The installer removes the `TypeOverlay` override on each associated ProgID. Windows
+then uses the associated application's default icon as a separate lower-right
+thumbnail overlay, as documented for thumbnail handlers. An empty `TypeOverlay`
+string would disable the overlay. The previous value is backed up and restored on
+uninstall, including upgrades from 1.2.1.
 
 ## EPS
 
