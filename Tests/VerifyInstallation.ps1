@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $provider = "{A0654CAE-E1AC-4A73-96F8-CB5453EE3264}"
 $handler = "{E357FCCD-A995-4576-B01F-234630154E96}"
-$extensions = ".psd", ".psb", ".ai", ".eps", ".indd", ".pdf"
+$extensions = ".psd", ".psb", ".ai", ".eps", ".indd", ".pdf", ".svg"
 
 $clsidPath = "Registry::HKEY_CURRENT_USER\Software\Classes\CLSID\$provider\InprocServer32"
 $dll = (Get-ItemProperty -LiteralPath $clsidPath).'(default)'
@@ -32,6 +32,6 @@ foreach ($extension in $extensions) {
     }
 }
 
-Write-Host "ArtThumb registration and native app thumbnail overlays are valid for all six extensions."
+Write-Host "ArtThumb registration and native app thumbnail overlays are valid for all seven extensions."
 Write-Host "Provider: $dll"
 Write-Host "Settings: $settings"

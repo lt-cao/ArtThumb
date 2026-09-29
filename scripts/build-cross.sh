@@ -15,7 +15,7 @@ mkdir -p "$build_dir"
 common_flags=(
   -std=c++20 -O2 -DNDEBUG -static
   -DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN -DNOMINMAX
-  -D_WIN32_WINNT=0x0A00 -DNTDDI_VERSION=0x0A000000
+  -D_WIN32_WINNT=0x0A00 -DNTDDI_VERSION=0x0A000003
   -Wall -Wextra -Wpedantic -Wno-unknown-pragmas
   -I"$project_root"
 )
@@ -42,6 +42,7 @@ provider_sources=(
   Decoders/EmbeddedPreview.cpp
   Decoders/PsdDecoder.cpp
   Decoders/PdfRenderer.cpp
+  Decoders/SvgRenderer.cpp
   Decoders/ThumbnailPipeline.cpp
   Settings/UserSettings.cpp
 )
@@ -54,7 +55,7 @@ done
   "${common_flags[@]}" -shared -Wl,--no-undefined \
   "${provider_paths[@]}" "$project_root/Provider/ArtThumbProvider.def" "$build_dir/provider.res" \
   -ladvapi32 -lgdi32 -lole32 -lruntimeobject -lshell32 -lshcore \
-  -lshlwapi -luuid -lwindowscodecs \
+  -lshlwapi -luuid -lwindowscodecs -ld2d1 -ld3d11 -ldxgi \
   -o "$build_dir/ArtThumbProvider.dll"
 
 "$tool_bin/x86_64-w64-mingw32-clang++" \

@@ -10,7 +10,7 @@
 namespace {
 
 constexpr const wchar_t* kExtensions[] = {
-    L".psd", L".psb", L".ai", L".eps", L".indd", L".pdf"
+    L".psd", L".psb", L".ai", L".eps", L".indd", L".pdf", L".svg"
 };
 
 std::wstring ParentDirectory(const std::wstring& path) {
@@ -332,7 +332,7 @@ int Install() {
     }
     CreateSettingsShortcut(destinationSettings, directory);
     MessageBoxW(nullptr,
-        L"Đã cài ArtThumb cho PSD, PSB, AI, EPS, INDD và PDF.\n\nArtThumb Settings sẽ mở để bạn xem trước icon ứng dụng và chỉnh độ sắc nét thumbnail. Windows Explorer tự phủ icon ứng dụng riêng ở góc; ảnh thumbnail không bị sửa. Nếu thư mục đang mở chưa đổi, hãy đóng rồi mở lại File Explorer.",
+        L"Đã cài ArtThumb cho PSD, PSB, AI, EPS, INDD, PDF và SVG.\n\nArtThumb Settings sẽ mở để bạn xem trước icon ứng dụng và chỉnh độ sắc nét thumbnail. Windows Explorer tự phủ icon ứng dụng riêng ở góc; ảnh thumbnail không bị sửa. Nếu thư mục đang mở chưa đổi, hãy đóng rồi mở lại File Explorer.",
         L"ArtThumb", MB_OK | MB_ICONINFORMATION);
     ShellExecuteW(nullptr, L"open", destinationSettings.c_str(), nullptr,
                   directory.c_str(), SW_SHOWNORMAL);

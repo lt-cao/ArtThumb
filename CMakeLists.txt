@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(ArtThumb VERSION 1.2.2 LANGUAGES CXX RC)
+project(ArtThumb VERSION 1.2.3 LANGUAGES CXX RC)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,6 +18,7 @@ add_library(ArtThumbProvider SHARED
     Decoders/EmbeddedPreview.cpp
     Decoders/PsdDecoder.cpp
     Decoders/PdfRenderer.cpp
+    Decoders/SvgRenderer.cpp
     Decoders/ThumbnailPipeline.cpp
     Settings/UserSettings.cpp
     resources/provider.rc
@@ -25,10 +26,11 @@ add_library(ArtThumbProvider SHARED
 
 target_include_directories(ArtThumbProvider PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(ArtThumbProvider PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX
-    _WIN32_WINNT=0x0A00 NTDDI_VERSION=0x0A000000)
+    _WIN32_WINNT=0x0A00 NTDDI_VERSION=0x0A000003)
 target_compile_options(ArtThumbProvider PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas)
 target_link_libraries(ArtThumbProvider PRIVATE
     windowscodecs shcore shlwapi ole32 runtimeobject gdi32 advapi32 shell32
+    d2d1 d3d11 dxgi
 )
 set_target_properties(ArtThumbProvider PROPERTIES
     PREFIX ""
@@ -45,7 +47,7 @@ target_include_directories(ArtThumbSetup PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/resources
 )
 target_compile_definitions(ArtThumbSetup PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX
-    _WIN32_WINNT=0x0A00 NTDDI_VERSION=0x0A000000)
+    _WIN32_WINNT=0x0A00 NTDDI_VERSION=0x0A000003)
 target_compile_options(ArtThumbSetup PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas)
 target_link_libraries(ArtThumbSetup PRIVATE advapi32 ole32 shell32 shlwapi user32)
 set_target_properties(ArtThumbSetup PROPERTIES SUFFIX ".exe")
@@ -58,7 +60,7 @@ add_executable(ArtThumbSettings WIN32
 )
 target_include_directories(ArtThumbSettings PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(ArtThumbSettings PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX
-    _WIN32_WINNT=0x0A00 NTDDI_VERSION=0x0A000000)
+    _WIN32_WINNT=0x0A00 NTDDI_VERSION=0x0A000003)
 target_compile_options(ArtThumbSettings PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas)
 target_link_libraries(ArtThumbSettings PRIVATE
     advapi32 comctl32 gdi32 shell32 shlwapi user32 winhttp

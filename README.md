@@ -1,4 +1,4 @@
-# ArtThumb 1.2.2
+# ArtThumb 1.2.3
 
 Created by **Cao Le**.
 
@@ -17,7 +17,7 @@ ArtThumb does not paint that icon into the document image.
 
 Open **ArtThumb Settings** from the Start menu. It provides:
 
-- A live File Explorer-style preview for PSD, PSB, AI, EPS, INDD, and PDF.
+- A live File Explorer-style preview for PSD, PSB, AI, EPS, INDD, PDF, and SVG.
 - The associated application's icon shown as a separate overlay in the preview.
 - Optional thumbnail sharpening from 0% to 100%; 0% preserves original pixels.
 - A format-support summary and author/version information.
@@ -37,6 +37,7 @@ when **Check for updates** is clicked.
 | AI | First page when saved with **Create PDF Compatible File**; embedded XMP/JPEG or EPS preview fallback |
 | EPS | Embedded TIFF, EPSI (`%%BeginPreview`), or JPEG preview |
 | INDD | XMP JPEG page preview saved by InDesign; unrelated placed JPEG assets are ignored |
+| SVG | Vector artwork rendered with Windows Direct2D on Windows 10 version 1703 or newer; embedded base64 images are supported, remote image references are not |
 
 Some document formats can legally omit their preview. In that case ArtThumb
 returns control to Explorer, which displays the normal file icon. In particular:
@@ -44,6 +45,7 @@ returns control to Explorer, which displays the normal file icon. In particular:
 - Photoshop files should be saved with **Maximize PSD and PSB File Compatibility**.
 - Illustrator files should be saved with **Create PDF Compatible File**.
 - InDesign should have **Always Save Preview Images With Documents** enabled.
+- SVG rendering follows the Windows Direct2D SVG feature subset; unsupported SVG elements may be omitted from the thumbnail.
 - A pure vector EPS with no embedded preview cannot be rendered without a
   PostScript interpreter. ArtThumb deliberately does not bundle Ghostscript,
   keeping the provider small and avoiding a persistent or heavyweight runtime.
@@ -73,6 +75,8 @@ To uninstall, open **Settings > Apps > Installed apps > ArtThumb > Uninstall**.
 - No automatic network check; the settings window contacts the GitHub API only
   after an explicit button click.
 - Reads only the file for which Explorer requests a thumbnail.
+- SVG files are rasterized only on a cache miss; input is capped at 32 MiB and
+  the returned bitmap is capped at 4096 pixels on its longest edge.
 - Reads bounded regions for embedded previews (up to 16 MiB from the beginning
   and end), rather than scanning an entire large INDD/PSB file.
 - PDF-compatible AI and PDF rendering runs on a short-lived MTA worker only on Explorer cache misses. This keeps WinRT work out of Explorer’s STA COM thread and bounds the host wait to 25 seconds.
@@ -81,8 +85,8 @@ To uninstall, open **Settings > Apps > Installed apps > ArtThumb > Uninstall**.
 
 ## Build from source
 
-The project is C++20 and uses Win32, COM, WIC, and Windows Runtime APIs only.
-No third-party runtime is required.
+The project is C++20 and uses Win32, COM, WIC, Windows Runtime, Direct2D, and
+Direct3D WARP APIs. No third-party runtime is required.
 
 With CMake and a Windows x64 compiler:
 
@@ -100,10 +104,10 @@ LLVM_MINGW_ROOT=/path/to/llvm-mingw ./scripts/build-cross.sh
 ## Architecture
 
 Explorer resolves the per-extension thumbnail association to one COM class. The
-provider receives an `IStream`, detects the format from file signatures (including
-PDF-compatible AI), extracts or renders one preview, scales through WIC, applies
-the selected sharpness, and returns a clean 32-bit DIB to Explorer. It does not
-start Adobe applications.
+provider receives an `IStream`, detects the format from file signatures and the
+SVG XML root (including PDF-compatible AI), extracts or renders one preview,
+scales through WIC where applicable, applies the selected sharpness, and returns
+a clean 32-bit DIB to Explorer. It does not start Adobe applications.
 
 See `docs/FORMAT_NOTES.md` for decoder boundaries and `docs/SECURITY.md` for the
 threat model.

@@ -10,7 +10,8 @@ enum class ThumbnailKind {
     Photoshop,
     Illustrator,
     InDesign,
-    Pdf
+    Pdf,
+    Svg
 };
 
 HRESULT DecodeThumbnail(IStream* stream, UINT edge, HBITMAP* bitmap,

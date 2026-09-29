@@ -4,9 +4,11 @@
 #include "Decoders/PdfRenderer.h"
 #include "Decoders/PsdDecoder.h"
 #include "Decoders/StreamReader.h"
+#include "Decoders/SvgRenderer.h"
 
 #include <algorithm>
 #include <cstring>
+#include <string>
 #include <vector>
 
 namespace artthumb {
@@ -33,6 +35,84 @@ bool IsPostScript(const std::vector<uint8_t>& prefix) noexcept {
     if (prefix.size() >= 4 && prefix[0] == 0xc5 && prefix[1] == 0xd0 &&
         prefix[2] == 0xd3 && prefix[3] == 0xc6) return true;
     return prefix.size() >= 4 && std::memcmp(prefix.data(), "%!PS", 4) == 0;
+}
+
+size_t SkipXmlDeclaration(const std::string& xml, size_t start) noexcept {
+    char quote = 0;
+    unsigned int subsetDepth = 0;
+    for (size_t index = start; index < xml.size(); ++index) {
+        const char value = xml[index];
+        if (quote != 0) {
+            if (value == quote) quote = 0;
+            continue;
+        }
+        if (value == '\'' || value == '"') quote = value;
+        else if (value == '[') ++subsetDepth;
+        else if (value == ']' && subsetDepth != 0) --subsetDepth;
+        else if (value == '>' && subsetDepth == 0) return index + 1;
+    }
+    return std::string::npos;
+}
+
+bool LooksLikeSvg(const std::vector<uint8_t>& prefix) {
+    size_t offset = 0;
+    bool littleEndianUtf16 = false;
+    bool bigEndianUtf16 = false;
+    if (prefix.size() >= 3 && prefix[0] == 0xef && prefix[1] == 0xbb && prefix[2] == 0xbf)
+        offset = 3;
+    else if (prefix.size() >= 2 && prefix[0] == 0xff && prefix[1] == 0xfe) {
+        offset = 2;
+        littleEndianUtf16 = true;
+    } else if (prefix.size() >= 2 && prefix[0] == 0xfe && prefix[1] == 0xff) {
+        offset = 2;
+        bigEndianUtf16 = true;
+    } else if (prefix.size() >= 2 && prefix[0] == '<' && prefix[1] == 0) {
+        littleEndianUtf16 = true;
+    } else if (prefix.size() >= 2 && prefix[0] == 0 && prefix[1] == '<') {
+        bigEndianUtf16 = true;
+    }
+
+    std::string xml;
+    xml.reserve(prefix.size());
+    if (littleEndianUtf16 || bigEndianUtf16) {
+        for (size_t index = offset; index + 1 < prefix.size(); index += 2) {
+            const uint16_t value = littleEndianUtf16
+                ? static_cast<uint16_t>(prefix[index] | (prefix[index + 1] << 8))
+                : static_cast<uint16_t>((prefix[index] << 8) | prefix[index + 1]);
+            xml.push_back(value <= 0x7f ? static_cast<char>(value) : ' ');
+        }
+    } else {
+        for (size_t index = offset; index < prefix.size(); ++index)
+            xml.push_back(prefix[index] <= 0x7f ? static_cast<char>(prefix[index]) : ' ');
+    }
+
+    size_t position = 0;
+    for (;;) {
+        position = xml.find_first_not_of(" \t\r\n", position);
+        if (position == std::string::npos) return false;
+        if (xml.compare(position, 2, "<?") == 0) {
+            position = xml.find("?>", position + 2);
+            if (position == std::string::npos) return false;
+            position += 2;
+        } else if (xml.compare(position, 4, "<!--") == 0) {
+            position = xml.find("-->", position + 4);
+            if (position == std::string::npos) return false;
+            position += 3;
+        } else if (xml.compare(position, 2, "<!") == 0) {
+            position = SkipXmlDeclaration(xml, position + 2);
+            if (position == std::string::npos) return false;
+        } else {
+            if (xml[position] != '<' || position + 1 >= xml.size() || xml[position + 1] == '/')
+                return false;
+            size_t nameEnd = position + 1;
+            while (nameEnd < xml.size() && xml[nameEnd] != '>' && xml[nameEnd] != '/' &&
+                   xml[nameEnd] != ' ' && xml[nameEnd] != '\t' && xml[nameEnd] != '\r' &&
+                   xml[nameEnd] != '\n') ++nameEnd;
+            const std::string elementName = xml.substr(position + 1, nameEnd - position - 1);
+            const size_t colon = elementName.find_last_of(':');
+            return elementName.substr(colon == std::string::npos ? 0 : colon + 1) == "svg";
+        }
+    }
 }
 
 } // namespace
@@ -68,6 +148,10 @@ HRESULT DecodeThumbnail(IStream* stream, UINT edge, HBITMAP* bitmap,
             hr = DecodeEpsPreview(reader, edge, bitmap);
             if (SUCCEEDED(hr)) return hr;
             return DecodeGenericEmbeddedPreview(reader, edge, bitmap);
+        }
+        if (LooksLikeSvg(prefix)) {
+            *kind = ThumbnailKind::Svg;
+            return DecodeSvg(reader, edge, bitmap);
         }
         return DecodeGenericEmbeddedPreview(reader, edge, bitmap);
     } catch (const std::bad_alloc&) {

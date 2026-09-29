@@ -11,7 +11,7 @@ namespace artthumb {
 namespace {
 
 constexpr const wchar_t* kExtensions[] = {
-    L".psd", L".psb", L".ai", L".eps", L".indd", L".pdf"
+    L".psd", L".psb", L".ai", L".eps", L".indd", L".pdf", L".svg"
 };
 
 HRESULT FromWin32(LONG value) noexcept {

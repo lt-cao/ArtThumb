@@ -37,11 +37,13 @@ if rg -q 'Name: (libstdc\+\+|libgcc|libwinpthread|libc\+\+).*\.dll' \
   exit 1
 fi
 
-for extension in psd psb ai eps indd pdf; do
+for extension in psd psb ai eps indd pdf svg; do
   rg -q "L\"\\.$extension\"" "$project_root/Provider/Registration.cpp"
   rg -q "L\"\\.$extension\"" "$project_root/Installer/Setup.cpp"
 done
 rg -q 'ApplyThumbnailSharpness' "$project_root/Provider/ThumbnailProvider.cpp"
+rg -q 'DecodeSvg' "$project_root/Decoders/ThumbnailPipeline.cpp"
+rg -q 'CreateSvgDocument|DrawSvgDocument' "$project_root/Decoders/SvgRenderer.cpp"
 rg -q 'LoadUserSettings' "$project_root/Provider/ThumbnailProvider.cpp"
 rg -q 'TypeOverlay' "$project_root/Installer/Setup.cpp"
 rg -q 'InstalledOverlayPresent' "$project_root/Installer/Setup.cpp"

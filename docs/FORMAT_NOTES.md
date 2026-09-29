@@ -36,3 +36,11 @@ and tail windows for the Base64 XMP `xmpGImg:image` preview InDesign stores. The
 decoder accepts the XML character references InDesign uses for Base64 line breaks
 and deliberately ignores unrelated JPEG assets embedded in the document. If the
 document was saved without a preview, Explorer falls back to its normal icon.
+
+## SVG
+
+SVG XML is rendered by the Windows Direct2D SVG parser into a bounded WARP-backed
+BGRA surface sized to Explorer's requested thumbnail edge. The input is capped at
+32 MiB and the raster dimensions at 4096 pixels per edge. The supported SVG feature
+set follows Direct2D's SVG 1.1 subset; unknown features may be ignored by Windows.
+Embedded base64 images are supported, while remote image references are not loaded.

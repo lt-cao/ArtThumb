@@ -47,6 +47,7 @@ constexpr FormatChoice kFormats[] = {
     {L"Illustrator EPS (.eps)", L".eps"},
     {L"InDesign (.indd)", L".indd"},
     {L"PDF (.pdf)", L".pdf"},
+    {L"SVG vector (.svg)", L".svg"},
 };
 
 HWND g_window = nullptr;
@@ -477,7 +478,8 @@ void CreateInterface() {
         L"AI           Illustrator — PDF tương thích hoặc preview nhúng\r\n"
         L"EPS          TIFF, EPSI hoặc JPEG preview\r\n"
         L"INDD         Preview trang được InDesign lưu trong tài liệu\r\n"
-        L"PDF          Trang đầu tiên",
+        L"PDF          Trang đầu tiên\r\n"
+        L"SVG          Vector được render bằng Direct2D",
         SS_LEFT, 50, 462, 500, 112);
 
     AddControl(L"BUTTON", L"Thông tin & cập nhật", BS_GROUPBOX,

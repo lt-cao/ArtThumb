@@ -3,8 +3,8 @@
 1 RT_MANIFEST "setup.manifest"
 
 1 VERSIONINFO
- FILEVERSION 1,2,2,0
- PRODUCTVERSION 1,2,2,0
+ FILEVERSION 1,2,3,0
+ PRODUCTVERSION 1,2,3,0
  FILEFLAGSMASK 0x3fL
  FILEFLAGS 0x0L
  FILEOS VOS_NT_WINDOWS32
@@ -17,10 +17,10 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Cao Le\0"
             VALUE "FileDescription", "ArtThumb Setup\0"
-            VALUE "FileVersion", "1.2.2\0"
+            VALUE "FileVersion", "1.2.3\0"
             VALUE "OriginalFilename", "ArtThumbSetup.exe\0"
             VALUE "ProductName", "ArtThumb\0"
-            VALUE "ProductVersion", "1.2.2\0"
+            VALUE "ProductVersion", "1.2.3\0"
         END
     END
     BLOCK "VarFileInfo"
