@@ -9,10 +9,19 @@
 #include <algorithm>
 #include <cstring>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace artthumb {
 namespace {
+
+constexpr size_t kIllustratorWarningSearchWindow = 16u * 1024u * 1024u;
+
+bool ContainsText(const std::vector<uint8_t>& bytes, std::string_view needle) noexcept {
+    if (needle.empty() || bytes.size() < needle.size()) return false;
+    const std::string_view text(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+    return text.find(needle) != std::string_view::npos;
+}
 
 bool ContainsPdfHeader(const std::vector<uint8_t>& prefix) noexcept {
     const size_t limit = std::min<size_t>(prefix.size(), 1024);
@@ -21,6 +30,25 @@ bool ContainsPdfHeader(const std::vector<uint8_t>& prefix) noexcept {
         if (std::memcmp(prefix.data() + index, marker, sizeof(marker) - 1) == 0) return true;
     }
     return false;
+}
+
+bool IsIllustratorPdf(const std::vector<uint8_t>& prefix) noexcept {
+    return ContainsText(prefix, "http://ns.adobe.com/illustrator/");
+}
+
+bool HasIllustratorNoPdfContentWarning(const StreamReader& reader) {
+    // Illustrator still wraps non-PDF-compatible AI files in a PDF container,
+    // but its PDF page is only a compatibility warning. The actual artwork is
+    // represented by the JPEG thumbnail in the XMP metadata.
+    constexpr std::string_view warning = "without PDF C";
+    std::vector<uint8_t> bytes;
+    HRESULT hr = reader.ReadPrefix(kIllustratorWarningSearchWindow, bytes);
+    if (SUCCEEDED(hr) && ContainsText(bytes, warning)) return true;
+    if (reader.Size() <= kIllustratorWarningSearchWindow) return false;
+
+    uint64_t baseOffset = 0;
+    hr = reader.ReadTail(kIllustratorWarningSearchWindow, bytes, baseOffset);
+    return SUCCEEDED(hr) && ContainsText(bytes, warning);
 }
 
 bool IsInDesign(const std::vector<uint8_t>& prefix) noexcept {
@@ -134,7 +162,12 @@ HRESULT DecodeThumbnail(IStream* stream, UINT edge, HBITMAP* bitmap,
             return DecodePsd(reader, edge, bitmap);
         }
         if (ContainsPdfHeader(prefix)) {
-            *kind = ThumbnailKind::Pdf;
+            const bool illustratorPdf = IsIllustratorPdf(prefix);
+            *kind = illustratorPdf ? ThumbnailKind::Illustrator : ThumbnailKind::Pdf;
+            if (illustratorPdf && HasIllustratorNoPdfContentWarning(reader)) {
+                hr = DecodeGenericEmbeddedPreview(reader, edge, bitmap);
+                if (SUCCEEDED(hr)) return hr;
+            }
             hr = DecodePdfFirstPage(reader, edge, bitmap);
             if (SUCCEEDED(hr)) return hr;
             return DecodeGenericEmbeddedPreview(reader, edge, bitmap);

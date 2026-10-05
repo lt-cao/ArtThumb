@@ -26,8 +26,8 @@ common_flags=(
     -o "$build_dir/provider.res"
   "$tool_bin/x86_64-w64-mingw32-windres" setup.rc -I. -O coff \
     -o "$build_dir/setup.res"
-  "$tool_bin/x86_64-w64-mingw32-windres" settings.rc -I. -O coff \
-    -o "$build_dir/settings.res"
+  "$tool_bin/x86_64-w64-mingw32-windres" updater.rc -I. -O coff \
+    -o "$build_dir/updater.res"
 )
 
 provider_sources=(
@@ -38,13 +38,11 @@ provider_sources=(
   Provider/Registration.cpp
   Decoders/StreamReader.cpp
   Decoders/WicImage.cpp
-  Decoders/ThumbnailEffects.cpp
   Decoders/EmbeddedPreview.cpp
   Decoders/PsdDecoder.cpp
   Decoders/PdfRenderer.cpp
   Decoders/SvgRenderer.cpp
   Decoders/ThumbnailPipeline.cpp
-  Settings/UserSettings.cpp
 )
 provider_paths=()
 for source in "${provider_sources[@]}"; do
@@ -64,23 +62,13 @@ done
   -ladvapi32 -lole32 -lshell32 -lshlwapi -luser32 -luuid \
   -o "$build_dir/ArtThumbSetup.exe"
 
-settings_sources=(
-  SettingsApp/Main.cpp
-  Settings/UserSettings.cpp
-  Decoders/ThumbnailEffects.cpp
-)
-settings_paths=()
-for source in "${settings_sources[@]}"; do
-  settings_paths+=("$project_root/$source")
-done
-
 "$tool_bin/x86_64-w64-mingw32-clang++" \
   "${common_flags[@]}" -municode -mwindows \
-  "${settings_paths[@]}" "$build_dir/settings.res" \
-  -ladvapi32 -lcomctl32 -lgdi32 -lshell32 -lshlwapi -luser32 -lwinhttp \
-  -o "$build_dir/ArtThumbSettings.exe"
+  "$project_root/Updater/Main.cpp" "$build_dir/updater.res" \
+  -lshell32 -luser32 -lwinhttp \
+  -o "$build_dir/ArtThumbUpdate.exe"
 
 echo "Release files:"
 echo "  $build_dir/ArtThumbProvider.dll"
 echo "  $build_dir/ArtThumbSetup.exe"
-echo "  $build_dir/ArtThumbSettings.exe"
+echo "  $build_dir/ArtThumbUpdate.exe"

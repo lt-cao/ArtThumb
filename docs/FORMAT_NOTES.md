@@ -14,14 +14,18 @@ JPEG fallback. Embedded previews are resized with WIC high-quality cubic filteri
 
 The first PDF page is rendered with `Windows.Data.Pdf` on a dedicated MTA worker, avoiding WinRT async deadlocks when Explorer invokes the COM handler from an STA thread. Loading and rendering are each bounded to ten seconds, and Explorer waits at most 25 seconds for the worker. AI files saved with **Create PDF Compatible File** use this same path. If PDF rendering fails, ArtThumb searches both the beginning and end of the file for an embedded XMP/JPEG preview. Old AI files are PostScript and try the EPS preview path first, followed by the same embedded-preview fallback.
 
+Some newer `.ai` files still have a PDF header even when **Create PDF Compatible File** is disabled. In that case the PDF page is Illustrator's compatibility warning, not the artwork. ArtThumb detects that warning and uses the real XMP/JPEG document preview embedded by Illustrator instead.
+
 ## Clean thumbnails
 
 ArtThumb never draws an application or file-type icon into the returned bitmap.
-The installer removes the `TypeOverlay` override on each associated ProgID. Windows
-then uses the associated application's default icon as a separate lower-right
-thumbnail overlay, as documented for thumbnail handlers. An empty `TypeOverlay`
-string would disable the overlay. The previous value is backed up and restored on
-uninstall, including upgrades from 1.2.1.
+The installer resolves each format's associated default icon and registers it as
+`TypeOverlay`, so Windows draws the icon as a separate lower-right thumbnail
+overlay. This also handles applications that register an empty machine-wide
+`TypeOverlay`, which would otherwise suppress the overlay even when a per-user
+value is removed. The previous per-user value is backed up and restored on
+uninstall, including upgrades from 1.2.1. If Windows cannot resolve an associated
+icon, ArtThumb leaves `TypeOverlay` absent.
 
 ## EPS
 

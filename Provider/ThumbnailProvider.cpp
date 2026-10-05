@@ -1,9 +1,7 @@
 #include "Provider/ThumbnailProvider.h"
 
 #include "Decoders/ThumbnailPipeline.h"
-#include "Decoders/ThumbnailEffects.h"
 #include "Provider/Module.h"
-#include "Settings/UserSettings.h"
 
 #include <algorithm>
 #include <new>
@@ -58,8 +56,6 @@ HRESULT ThumbnailProvider::GetThumbnail(UINT edge, HBITMAP* bitmap, WTS_ALPHATYP
         ThumbnailKind kind = ThumbnailKind::Unknown;
         HRESULT hr = DecodeThumbnail(stream_, boundedEdge, bitmap, &kind);
         if (SUCCEEDED(hr) && *bitmap) {
-            const UserSettings settings = LoadUserSettings();
-            ApplyThumbnailSharpness(*bitmap, settings.sharpness);
             *alpha = WTSAT_ARGB;
         }
         return hr;

@@ -11,12 +11,12 @@ fi
 reader="$toolchain_root/bin/llvm-readobj"
 dll="$project_root/build-cross/ArtThumbProvider.dll"
 setup="$project_root/build-cross/ArtThumbSetup.exe"
-settings="$project_root/build-cross/ArtThumbSettings.exe"
-[[ -f "$dll" && -f "$setup" && -f "$settings" ]]
+updater="$project_root/build-cross/ArtThumbUpdate.exe"
+[[ -f "$dll" && -f "$setup" && -f "$updater" ]]
 
-dll_report="$($reader --file-headers --coff-exports --coff-imports "$dll")"
-setup_report="$($reader --file-headers --coff-resources "$setup")"
-settings_report="$($reader --file-headers --coff-imports --coff-resources "$settings")"
+dll_report="$("$reader" --file-headers --coff-exports --coff-imports "$dll")"
+setup_report="$("$reader" --file-headers --coff-imports --coff-resources "$setup")"
+updater_report="$("$reader" --file-headers --coff-imports --coff-resources "$updater")"
 
 rg -q 'Arch: x86_64' <<<"$dll_report"
 rg -q 'IMAGE_FILE_DLL' <<<"$dll_report"
@@ -25,39 +25,41 @@ for export_name in DllCanUnloadNow DllGetClassObject DllRegisterServer DllUnregi
 done
 rg -q 'Type: MANIFEST' <<<"$setup_report"
 rg -q 'Type: VERSIONINFO' <<<"$setup_report"
-rg -q 'Arch: x86_64' <<<"$settings_report"
-rg -q 'IMAGE_SUBSYSTEM_WINDOWS_GUI' <<<"$settings_report"
-rg -q 'Type: MANIFEST' <<<"$settings_report"
-rg -q 'Type: VERSIONINFO' <<<"$settings_report"
-rg -q 'Name: WINHTTP.dll' <<<"$settings_report"
+rg -q 'Arch: x86_64' <<<"$updater_report"
+rg -q 'IMAGE_SUBSYSTEM_WINDOWS_GUI' <<<"$updater_report"
+rg -q 'Type: MANIFEST' <<<"$updater_report"
+rg -q 'Type: VERSIONINFO' <<<"$updater_report"
+rg -q 'Name: WINHTTP.dll' <<<"$updater_report"
 
 if rg -q 'Name: (libstdc\+\+|libgcc|libwinpthread|libc\+\+).*\.dll' \
-    <<<"$dll_report$settings_report"; then
+    <<<"$dll_report$setup_report$updater_report"; then
   echo "Unexpected compiler runtime DLL dependency." >&2
   exit 1
 fi
 
 for extension in psd psb ai eps indd pdf svg; do
-  rg -q "L\"\\.$extension\"" "$project_root/Provider/Registration.cpp"
-  rg -q "L\"\\.$extension\"" "$project_root/Installer/Setup.cpp"
+  rg -q "\\.$extension" "$project_root/Provider/Registration.cpp"
+  rg -q "\\.$extension" "$project_root/Installer/Setup.cpp"
 done
-rg -q 'ApplyThumbnailSharpness' "$project_root/Provider/ThumbnailProvider.cpp"
 rg -q 'DecodeSvg' "$project_root/Decoders/ThumbnailPipeline.cpp"
+rg -q 'HasIllustratorNoPdfContentWarning' "$project_root/Decoders/ThumbnailPipeline.cpp"
+rg -q 'DecodeGenericEmbeddedPreview\(reader, edge, bitmap\)' "$project_root/Decoders/ThumbnailPipeline.cpp"
 rg -q 'CreateSvgDocument|DrawSvgDocument' "$project_root/Decoders/SvgRenderer.cpp"
-rg -q 'LoadUserSettings' "$project_root/Provider/ThumbnailProvider.cpp"
 rg -q 'TypeOverlay' "$project_root/Installer/Setup.cpp"
 rg -q 'InstalledOverlayPresent' "$project_root/Installer/Setup.cpp"
-rg -q 'return DeleteNamedValue\(HKEY_CURRENT_USER, target, L"TypeOverlay"\)' "$project_root/Installer/Setup.cpp"
-rg -q 'kGitHubLatestReleaseApiPath' "$project_root/SettingsApp/Main.cpp"
-rg -q 'WinHttpOpen' "$project_root/SettingsApp/Main.cpp"
-rg -q 'ArtThumbSettings.exe' "$project_root/Installer/Setup.cpp"
-if rg -q 'AddApplicationBadge|ApplicationBadge\.cpp|badgePercent|BadgePercent' \
-    "$project_root/Provider" "$project_root/Settings" "$project_root/SettingsApp" \
-    "$project_root/CMakeLists.txt" "$project_root/scripts/build-cross.sh"; then
-  echo "Thumbnail pixels and settings must not contain application badges." >&2
-  exit 1
-fi
-rg -q 'DecodeComposite\(reader, info, edge, bitmap\)' "$project_root/Decoders/PsdDecoder.cpp"
+rg -q 'AssocQueryStringW\(ASSOCF_NONE, ASSOCSTR_DEFAULTICON' "$project_root/Installer/Setup.cpp"
+rg -q 'SetString\(HKEY_CURRENT_USER, target, L"TypeOverlay", icon\)' "$project_root/Installer/Setup.cpp"
+rg -q 'CreateUpdaterShortcut' "$project_root/Installer/Setup.cpp"
+rg -q 'ArtThumbUpdate.exe' "$project_root/Installer/Setup.cpp"
+rg -q 'ArtThumb Settings.lnk' "$project_root/Installer/Setup.cpp"
+rg -q 'SettingsPath' "$project_root/Installer/Setup.cpp"
+rg -Fq 'Software\\ArtThumb\\Settings' "$project_root/Installer/Setup.cpp"
+rg -q 'kGitHubLatestReleaseApiPath' "$project_root/Provider/Module.h"
+rg -q 'WinHttpOpen' "$project_root/Updater/Main.cpp"
+rg -q 'WinHttpOpenRequest\(connection' "$project_root/Updater/Main.cpp"
+rg -q 'PostMessageW\(window, kUpdateComplete' "$project_root/Updater/Main.cpp"
+rg -q 'UpdaterPath' "$project_root/Tests/VerifyInstallation.ps1"
+rg -q 'ArtThumb Update.lnk' "$project_root/Tests/VerifyInstallation.ps1"
 rg -q 'WICBitmapInterpolationModeHighQualityCubic' "$project_root/Decoders/WicImage.cpp"
 rg -q 'FindXmpImage\(bytes, encoded\) \|\| FindJpeg' "$project_root/Decoders/EmbeddedPreview.cpp"
 rg -q 'entity == "&#xA;"' "$project_root/Decoders/EmbeddedPreview.cpp"
@@ -73,5 +75,11 @@ if rg -q 'DisableProcessIsolation' "$project_root/Provider" "$project_root/Decod
   echo "Process isolation must not be disabled." >&2
   exit 1
 fi
+if rg -q 'ApplyThumbnailSharpness|SharpnessSlider|SettingsApp/Main.cpp' \
+    "$project_root/Provider" "$project_root/Decoders" "$project_root/CMakeLists.txt" \
+    "$project_root/scripts/build-cross.sh"; then
+  echo "Thumbnail preview and sharpness settings must not be part of the app or provider." >&2
+  exit 1
+fi
 
-echo "ArtThumb provider, installer, settings UI, resources, runtime dependencies, and registrations are valid."
+echo "ArtThumb provider, installer, update checker, resources, runtime dependencies, and registrations are valid."

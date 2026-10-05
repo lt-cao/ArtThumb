@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(ArtThumb VERSION 1.2.3 LANGUAGES CXX RC)
+project(ArtThumb VERSION 1.2.4 LANGUAGES CXX RC)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,13 +14,11 @@ add_library(ArtThumbProvider SHARED
     Provider/Registration.cpp
     Decoders/StreamReader.cpp
     Decoders/WicImage.cpp
-    Decoders/ThumbnailEffects.cpp
     Decoders/EmbeddedPreview.cpp
     Decoders/PsdDecoder.cpp
     Decoders/PdfRenderer.cpp
     Decoders/SvgRenderer.cpp
     Decoders/ThumbnailPipeline.cpp
-    Settings/UserSettings.cpp
     resources/provider.rc
 )
 
@@ -52,20 +50,18 @@ target_compile_options(ArtThumbSetup PRIVATE -Wall -Wextra -Wpedantic -Wno-unkno
 target_link_libraries(ArtThumbSetup PRIVATE advapi32 ole32 shell32 shlwapi user32)
 set_target_properties(ArtThumbSetup PROPERTIES SUFFIX ".exe")
 
-add_executable(ArtThumbSettings WIN32
-    SettingsApp/Main.cpp
-    Settings/UserSettings.cpp
-    Decoders/ThumbnailEffects.cpp
-    resources/settings.rc
+add_executable(ArtThumbUpdate WIN32
+    Updater/Main.cpp
+    resources/updater.rc
 )
-target_include_directories(ArtThumbSettings PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(ArtThumbSettings PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX
+target_include_directories(ArtThumbUpdate PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(ArtThumbUpdate PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX
     _WIN32_WINNT=0x0A00 NTDDI_VERSION=0x0A000003)
-target_compile_options(ArtThumbSettings PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas)
-target_link_libraries(ArtThumbSettings PRIVATE
-    advapi32 comctl32 gdi32 shell32 shlwapi user32 winhttp
+target_compile_options(ArtThumbUpdate PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas)
+target_link_libraries(ArtThumbUpdate PRIVATE
+    shell32 user32 winhttp
 )
-set_target_properties(ArtThumbSettings PROPERTIES SUFFIX ".exe")
+set_target_properties(ArtThumbUpdate PROPERTIES SUFFIX ".exe")
 
-install(TARGETS ArtThumbProvider ArtThumbSetup ArtThumbSettings
+install(TARGETS ArtThumbProvider ArtThumbSetup ArtThumbUpdate
         RUNTIME DESTINATION . LIBRARY DESTINATION .)

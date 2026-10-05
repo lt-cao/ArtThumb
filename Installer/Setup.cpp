@@ -114,6 +114,21 @@ std::wstring OverlayKey(const wchar_t* extension) {
     return AssociationKey(extension);
 }
 
+std::wstring AssociatedDefaultIcon(const wchar_t* extension) {
+    DWORD length = 0;
+    HRESULT hr = AssocQueryStringW(ASSOCF_NONE, ASSOCSTR_DEFAULTICON, extension,
+                                   nullptr, nullptr, &length);
+    if (hr != S_FALSE && FAILED(hr)) return {};
+    if (length == 0) return {};
+
+    std::wstring icon(length, L'\0');
+    hr = AssocQueryStringW(ASSOCF_NONE, ASSOCSTR_DEFAULTICON, extension,
+                           nullptr, icon.data(), &length);
+    if (FAILED(hr)) return {};
+    icon.resize(wcslen(icon.c_str()));
+    return icon;
+}
+
 std::wstring HandlerKey(const wchar_t* extension) {
     return AssociationKey(extension) + L"\\ShellEx\\" +
            artthumb::kThumbnailHandlerIidText;
@@ -174,12 +189,22 @@ bool ConfigureOverlay(const wchar_t* extension) {
     std::wstring target;
     if (!QueryString(HKEY_CURRENT_USER, BackupKey(extension), L"OverlayTarget", target))
         return false;
-    // An absent TypeOverlay tells Explorer to use the associated app's default
-    // icon as a native thumbnail overlay. An empty string disables the overlay.
-    if (!SetDword(HKEY_CURRENT_USER, BackupKey(extension),
-                  L"InstalledOverlayPresent", 0))
+    // Some applications register an empty TypeOverlay in HKLM. Removing only
+    // the per-user value does not hide that machine-wide value, so resolve the
+    // associated file icon and explicitly ask Explorer to use it as its native
+    // thumbnail overlay. The thumbnail bitmap itself remains untouched.
+    const std::wstring icon = AssociatedDefaultIcon(extension);
+    if (icon.empty()) {
+        if (!SetDword(HKEY_CURRENT_USER, BackupKey(extension),
+                      L"InstalledOverlayPresent", 0))
+            return false;
+        return DeleteNamedValue(HKEY_CURRENT_USER, target, L"TypeOverlay");
+    }
+    if (!SetString(HKEY_CURRENT_USER, BackupKey(extension), L"InstalledOverlay", icon) ||
+        !SetDword(HKEY_CURRENT_USER, BackupKey(extension),
+                  L"InstalledOverlayPresent", 1))
         return false;
-    return DeleteNamedValue(HKEY_CURRENT_USER, target, L"TypeOverlay");
+    return SetString(HKEY_CURRENT_USER, target, L"TypeOverlay", icon);
 }
 
 void RestoreOverlay(const wchar_t* extension) {
@@ -237,21 +262,21 @@ std::wstring StartMenuDirectory() {
     return result + L"\\ArtThumb";
 }
 
-bool CreateSettingsShortcut(const std::wstring& settingsPath,
+bool CreateUpdaterShortcut(const std::wstring& updaterPath,
                             const std::wstring& installDirectory) {
     const std::wstring menuDirectory = StartMenuDirectory();
     if (menuDirectory.empty() || !EnsureDirectory(menuDirectory)) return false;
     IShellLinkW* link = nullptr;
     if (FAILED(CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER,
                                 IID_PPV_ARGS(&link)))) return false;
-    HRESULT hr = link->SetPath(settingsPath.c_str());
+    HRESULT hr = link->SetPath(updaterPath.c_str());
     if (SUCCEEDED(hr)) hr = link->SetWorkingDirectory(installDirectory.c_str());
-    if (SUCCEEDED(hr)) hr = link->SetDescription(L"Cài đặt và xem trước thumbnail ArtThumb");
-    if (SUCCEEDED(hr)) hr = link->SetIconLocation(settingsPath.c_str(), 0);
+    if (SUCCEEDED(hr)) hr = link->SetDescription(L"Kiểm tra cập nhật ArtThumb trên GitHub");
+    if (SUCCEEDED(hr)) hr = link->SetIconLocation(updaterPath.c_str(), 0);
     IPersistFile* persist = nullptr;
     if (SUCCEEDED(hr)) hr = link->QueryInterface(IID_PPV_ARGS(&persist));
     if (SUCCEEDED(hr)) {
-        const std::wstring shortcut = menuDirectory + L"\\ArtThumb Settings.lnk";
+        const std::wstring shortcut = menuDirectory + L"\\ArtThumb Update.lnk";
         hr = persist->Save(shortcut.c_str(), TRUE);
     }
     if (persist) persist->Release();
@@ -259,15 +284,16 @@ bool CreateSettingsShortcut(const std::wstring& settingsPath,
     return SUCCEEDED(hr);
 }
 
-void RemoveSettingsShortcut() {
+void RemoveUpdaterShortcuts() {
     const std::wstring menuDirectory = StartMenuDirectory();
     if (menuDirectory.empty()) return;
     DeleteFileW((menuDirectory + L"\\ArtThumb Settings.lnk").c_str());
+    DeleteFileW((menuDirectory + L"\\ArtThumb Update.lnk").c_str());
     RemoveDirectoryW(menuDirectory.c_str());
 }
 
 bool RegisterProvider(const std::wstring& dllPath, const std::wstring& uninstallPath,
-                      const std::wstring& settingsPath,
+                      const std::wstring& updaterPath,
                       const std::wstring& installDirectory) {
     const std::wstring clsid = std::wstring(L"Software\\Classes\\CLSID\\") +
                                artthumb::kThumbnailProviderClsidText;
@@ -288,13 +314,15 @@ bool RegisterProvider(const std::wstring& dllPath, const std::wstring& uninstall
     if (!SetString(HKEY_CURRENT_USER, uninstallKey, L"DisplayName", L"ArtThumb") ||
         !SetString(HKEY_CURRENT_USER, uninstallKey, L"DisplayVersion", artthumb::kProductVersion) ||
         !SetString(HKEY_CURRENT_USER, uninstallKey, L"Publisher", artthumb::kProductAuthor) ||
-        !SetString(HKEY_CURRENT_USER, uninstallKey, L"DisplayIcon", settingsPath) ||
+        !SetString(HKEY_CURRENT_USER, uninstallKey, L"DisplayIcon", updaterPath) ||
         !SetString(HKEY_CURRENT_USER, uninstallKey, L"InstallLocation", installDirectory) ||
         !SetString(HKEY_CURRENT_USER, uninstallKey, L"UninstallString", command) ||
         !SetDword(HKEY_CURRENT_USER, uninstallKey, L"NoModify", 1) ||
         !SetDword(HKEY_CURRENT_USER, uninstallKey, L"NoRepair", 1)) return false;
     SetString(HKEY_CURRENT_USER, L"Software\\ArtThumb", L"InstallLocation", installDirectory);
-    SetString(HKEY_CURRENT_USER, L"Software\\ArtThumb", L"SettingsPath", settingsPath);
+    DeleteNamedValue(HKEY_CURRENT_USER, L"Software\\ArtThumb", L"SettingsPath");
+    SHDeleteKeyW(HKEY_CURRENT_USER, L"Software\\ArtThumb\\Settings");
+    SetString(HKEY_CURRENT_USER, L"Software\\ArtThumb", L"UpdaterPath", updaterPath);
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
     return true;
 }
@@ -302,11 +330,11 @@ bool RegisterProvider(const std::wstring& dllPath, const std::wstring& uninstall
 int Install() {
     const std::wstring executable = CurrentExecutable();
     const std::wstring sourceDll = ParentDirectory(executable) + L"\\ArtThumbProvider.dll";
-    const std::wstring sourceSettings = ParentDirectory(executable) + L"\\ArtThumbSettings.exe";
+    const std::wstring sourceUpdater = ParentDirectory(executable) + L"\\ArtThumbUpdate.exe";
     if (GetFileAttributesW(sourceDll.c_str()) == INVALID_FILE_ATTRIBUTES ||
-        GetFileAttributesW(sourceSettings.c_str()) == INVALID_FILE_ATTRIBUTES) {
+        GetFileAttributesW(sourceUpdater.c_str()) == INVALID_FILE_ATTRIBUTES) {
         MessageBoxW(nullptr,
-            L"Không tìm thấy đủ ArtThumbProvider.dll và ArtThumbSettings.exe cạnh bộ cài. Hãy giải nén toàn bộ gói rồi chạy lại ArtThumbSetup.exe.",
+            L"Không tìm thấy đủ ArtThumbProvider.dll và ArtThumbUpdate.exe cạnh bộ cài. Hãy giải nén toàn bộ gói rồi chạy lại ArtThumbSetup.exe.",
             L"ArtThumb", MB_OK | MB_ICONERROR);
         return 2;
     }
@@ -316,33 +344,41 @@ int Install() {
         return 3;
     }
     const std::wstring destinationDll = directory + L"\\ArtThumbProvider.dll";
-    const std::wstring destinationSettings = directory + L"\\ArtThumbSettings.exe";
+    const std::wstring destinationUpdater = directory + L"\\ArtThumbUpdate.exe";
+    const std::wstring legacySettings = directory + L"\\ArtThumbSettings.exe";
     const std::wstring uninstaller = directory + L"\\Uninstall.exe";
     if (!CopyFileW(sourceDll.c_str(), destinationDll.c_str(), FALSE) ||
-        !CopyFileW(sourceSettings.c_str(), destinationSettings.c_str(), FALSE) ||
+        !CopyFileW(sourceUpdater.c_str(), destinationUpdater.c_str(), FALSE) ||
         !CopyFileW(executable.c_str(), uninstaller.c_str(), FALSE)) {
-        MessageBoxW(nullptr, L"Không thể sao chép file cài đặt. Hãy đóng ArtThumb Settings và File Explorer rồi thử lại.",
+        MessageBoxW(nullptr, L"Không thể sao chép file cài đặt. Hãy đóng ArtThumb Update và File Explorer rồi thử lại.",
                     L"ArtThumb", MB_OK | MB_ICONERROR);
         return 4;
     }
-    if (!RegisterProvider(destinationDll, uninstaller, destinationSettings, directory)) {
+    if (!RegisterProvider(destinationDll, uninstaller, destinationUpdater, directory)) {
         MessageBoxW(nullptr, L"Không thể đăng ký thumbnail provider cho tài khoản Windows hiện tại.",
                     L"ArtThumb", MB_OK | MB_ICONERROR);
         return 5;
     }
-    CreateSettingsShortcut(destinationSettings, directory);
+    RemoveUpdaterShortcuts();
+    DeleteFileW(legacySettings.c_str());
+    if (GetFileAttributesW(legacySettings.c_str()) != INVALID_FILE_ATTRIBUTES)
+        MoveFileExW(legacySettings.c_str(), nullptr, MOVEFILE_DELAY_UNTIL_REBOOT);
+    if (!CreateUpdaterShortcut(destinationUpdater, directory)) {
+        MessageBoxW(nullptr,
+            L"Đã cài ArtThumb nhưng không tạo được shortcut ArtThumb Update trong Start Menu. Bạn vẫn có thể mở ArtThumbUpdate.exe trong thư mục cài đặt.",
+            L"ArtThumb", MB_OK | MB_ICONWARNING);
+    }
     MessageBoxW(nullptr,
-        L"Đã cài ArtThumb cho PSD, PSB, AI, EPS, INDD, PDF và SVG.\n\nArtThumb Settings sẽ mở để bạn xem trước icon ứng dụng và chỉnh độ sắc nét thumbnail. Windows Explorer tự phủ icon ứng dụng riêng ở góc; ảnh thumbnail không bị sửa. Nếu thư mục đang mở chưa đổi, hãy đóng rồi mở lại File Explorer.",
+        L"Đã cài ArtThumb cho PSD, PSB, AI, EPS, INDD, PDF và SVG.\n\nMở ArtThumb Update từ Start Menu để kiểm tra phiên bản mới trên GitHub. Updater không tự tải hoặc cài đặt bản cập nhật. Windows Explorer tự phủ icon ứng dụng riêng ở góc; ảnh thumbnail không bị sửa. Nếu thư mục đang mở chưa đổi, hãy đóng rồi mở lại File Explorer.",
         L"ArtThumb", MB_OK | MB_ICONINFORMATION);
-    ShellExecuteW(nullptr, L"open", destinationSettings.c_str(), nullptr,
-                  directory.c_str(), SW_SHOWNORMAL);
     return 0;
 }
 
 int Uninstall() {
     const std::wstring directory = InstallDirectory();
     const std::wstring destinationDll = directory + L"\\ArtThumbProvider.dll";
-    const std::wstring destinationSettings = directory + L"\\ArtThumbSettings.exe";
+    const std::wstring destinationUpdater = directory + L"\\ArtThumbUpdate.exe";
+    const std::wstring legacySettings = directory + L"\\ArtThumbSettings.exe";
     const std::wstring uninstaller = directory + L"\\Uninstall.exe";
     for (const wchar_t* extension : kExtensions) {
         RestoreHandler(extension);
@@ -357,11 +393,13 @@ int Uninstall() {
     SHDeleteKeyW(HKEY_CURRENT_USER, L"Software\\ArtThumb");
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
 
-    RemoveSettingsShortcut();
+    RemoveUpdaterShortcuts();
     DeleteFileW(destinationDll.c_str());
-    DeleteFileW(destinationSettings.c_str());
+    DeleteFileW(destinationUpdater.c_str());
+    DeleteFileW(legacySettings.c_str());
     const std::wstring command = L"/d /q /c \"timeout /t 3 /nobreak >nul & del /f /q \"\"" +
-        destinationDll + L"\"\" \"\"" + destinationSettings + L"\"\" \"\"" +
+        destinationDll + L"\"\" \"\"" + destinationUpdater + L"\"\" \"\"" +
+        legacySettings + L"\"\" \"\"" +
         uninstaller + L"\"\" & rmdir \"\"" + directory + L"\"\"\"";
     const std::wstring runOnceCommand = L"C:\\Windows\\System32\\cmd.exe " + command;
     SetString(HKEY_CURRENT_USER,

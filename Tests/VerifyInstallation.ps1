@@ -11,9 +11,19 @@ if (-not (Test-Path -LiteralPath $dll)) {
 }
 
 $product = Get-ItemProperty -LiteralPath "Registry::HKEY_CURRENT_USER\Software\ArtThumb"
-$settings = $product.SettingsPath
-if (-not (Test-Path -LiteralPath $settings)) {
-    throw "Settings executable does not exist: $settings"
+$updater = $product.UpdaterPath
+if (-not (Test-Path -LiteralPath $updater)) {
+    throw "Update checker does not exist: $updater"
+}
+$startMenu = Join-Path ([Environment]::GetFolderPath("Programs")) "ArtThumb\ArtThumb Update.lnk"
+if (-not (Test-Path -LiteralPath $startMenu)) {
+    throw "ArtThumb Update shortcut does not exist: $startMenu"
+}
+if ($null -ne $product.SettingsPath) {
+    throw "Legacy settings registry value should have been removed"
+}
+if (Test-Path -LiteralPath "Registry::HKEY_CURRENT_USER\Software\ArtThumb\Settings") {
+    throw "Legacy sharpness settings should have been removed"
 }
 
 foreach ($extension in $extensions) {
@@ -24,14 +34,21 @@ foreach ($extension in $extensions) {
     }
 
     $backupPath = "Registry::HKEY_CURRENT_USER\Software\ArtThumb\Backups\$extension"
-    $overlayTarget = (Get-ItemProperty -LiteralPath $backupPath).OverlayTarget
+    $backup = Get-ItemProperty -LiteralPath $backupPath
+    $overlayTarget = $backup.OverlayTarget
     $overlayPath = "Registry::HKEY_CURRENT_USER\$overlayTarget"
     $overlay = (Get-ItemProperty -LiteralPath $overlayPath -ErrorAction SilentlyContinue).TypeOverlay
-    if ($null -ne $overlay) {
-        throw "Explorer TypeOverlay should be absent so its native app icon is used for $extension"
+    if ($backup.InstalledOverlayPresent -eq 1) {
+        if ([string]::IsNullOrWhiteSpace($backup.InstalledOverlay) -or
+            $overlay -ne $backup.InstalledOverlay) {
+            throw "Explorer TypeOverlay should use the associated app icon for $extension"
+        }
+    } elseif ($null -ne $overlay) {
+        throw "Unexpected ArtThumb TypeOverlay value for $extension without an associated icon"
     }
 }
 
 Write-Host "ArtThumb registration and native app thumbnail overlays are valid for all seven extensions."
 Write-Host "Provider: $dll"
-Write-Host "Settings: $settings"
+Write-Host "Update checker: $updater"
+Write-Host "Start Menu shortcut: $startMenu"
